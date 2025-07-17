@@ -106,7 +106,7 @@ class PMM_OT_PIPInstall(bpy.types.Operator):
     bl_description = "Install PIP packages"
 
     def execute(self, context):
-        chosen_path = "--user" if bpy.context.scene.pip_user_flag else None
+        chosen_path = "--user" if bpy.context.scene._flag else None
         run_pip_command(
             self,
             "install",
@@ -233,7 +233,7 @@ def register():
         bpy.utils.register_class(c)
 
     bpy.types.Scene.pip_modules_home = bpy.props.BoolProperty(default=False)
-    bpy.types.Scene.pip_user_flag = bpy.props.BoolProperty(default=True)
+    bpy.types.Scene.pip_user_flag = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.pip_advanced_toggle = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.pip_module_name = bpy.props.StringProperty()
 
