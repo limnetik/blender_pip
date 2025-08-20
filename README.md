@@ -1,7 +1,60 @@
-# blender_pip: Python module manager
+# 🐍 Python Module Manager Plus
 
-<img width="490" alt="image" src="https://user-images.githubusercontent.com/3758308/190018745-52fb472c-79a9-46ea-ab85-cf3ab4843ffc.png">
+**Blender Add-on for Python Package Management**  
+Manage, install, remove, and export Python packages directly inside Blender.
 
-A Blender addon for managing Python modules inside Blender with PIP. Install either by download .zip or downloading a release. Both should be installable into Blender through the install add-ons interface.
+---
 
-Name in the addon tab: "Development: Python Module Manager"
+## 📦 Overview
+The **Python Module Manager Plus** add-on allows you to manage Python packages inside Blender without needing to use a terminal.  
+It provides an interface in **Preferences → Add-ons** to install, remove, list, and export Python modules.  
+Additional tools include dependency reports and compatibility checks.
+
+---
+
+## 🔧 Installation
+1. Download the script file and save it as `python_module_manager_plus.py`.  
+2. In Blender, go to:  
+   **Edit → Preferences → Add-ons → Install…**  
+3. Select the script and enable the checkbox.  
+4. The add-on will now appear in **Preferences → Add-ons** under *Development*.  
+
+---
+
+## 🚀 Features
+
+### 📦 Package Management
+- **Install Packages** → Install one or multiple modules (space-separated).  
+- **Remove Packages** → Uninstall one or multiple modules.  
+- **List Installed Packages** → Show all installed modules with versions.  
+- **Clear Output** → Reset the result/console area inside the UI.  
+
+### 📑 Export & Reports
+- **Export Package List** → Save all installed packages into:
+  - `installed_packages.txt`  
+  - `installed_packages.csv`  
+- **Export Dependencies** → Run `pip show` and save package details to `package_dependencies.txt`.  
+- **Export Dependency Tree** → Use `pipdeptree` to generate a dependency tree (`dependency_tree.txt`).  
+
+### 🔍 Compatibility Tools
+- **Check Compatibility** → Verify package dependencies and detect version conflicts (`pip check`).  
+
+### 🔧 Maintenance
+- **Ensure pip** → Make sure `pip` is installed in Blender’s Python.  
+- **Upgrade pip** → Update `pip` to the latest version.  
+
+---
+
+## 🖼 UI Preview
+Accessible under:  
+**Edit → Preferences → Add-ons → Development → Python Module Manager Plus**  
+
+- **Module Name(s):** Field to enter one or more package names.  
+- **Install as --user:** Toggle for user-level installations.  
+- **Filter (for export):** Restrict results when exporting.  
+- **Output/Error Panels:** Show logs from pip commands.  
+
+---
+
+## 📂 Export Locations
+Files are saved in Blender’s **scripts folder**, typically:  
