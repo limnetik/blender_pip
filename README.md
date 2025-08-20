@@ -58,3 +58,30 @@ Accessible under:
 
 ## 📂 Export Locations
 Files are saved in Blender’s **scripts folder**, typically:  
+
+`<Blender user directory>/scripts/`
+
+- `installed_packages.txt`  
+- `installed_packages.csv`  
+- `package_dependencies.txt`  
+- `dependency_tree.txt`  
+
+---
+
+## ✅ Quick Start
+1. Open Blender Preferences → Add-ons → Development → **Python Module Manager Plus**.  
+2. Type a package name (e.g. `requests`).  
+3. Click **Install Packages**.  
+4. Use **List Packages** to confirm installation.  
+5. (Optional) Export lists or check compatibility.  
+
+---
+
+## 📌 Notes
+- Runs inside Blender’s bundled Python.  
+- Some packages with compiled binaries may require a matching build for Blender’s Python.  
+- Dependency graph visualization requires `pipdeptree` (installed automatically if missing).  
+
+
+
+
