@@ -1,248 +1,264 @@
 bl_info = {
-    "name": "Python Module Manager",
-    "author": "ambi",
-    "version": (1, 0, 6),
-    "blender": (2, 80, 0),
-    "location": "Here",
+    "name": "Python Module Manager plus",
+    "author": "ambi, modded by Limnetik",
+    "version": (0, 5, 0),
+    "blender": (4, 5, 1),
+    "location": "Preferences > Add-ons",
     "description": "Manage Python modules inside Blender with PIP",
-    "warning": "",
-    "wiki_url": "",
-    "support": "COMMUNITY",
-    "tracker_url": "https://github.com/amb/blender_pip/issues",
     "category": "Development",
 }
 
-__version__ = ".".join(map(str, bl_info["version"]))
-
-# add user site to sys.path
-# binaries go to {site.USER_BASE}/bin
-# venv notice:
-#   https://stackoverflow.com/questions/33412974/
-#   how-to-uninstall-a-package-installed-with-pip-install-user/56948334#56948334
-import site
+import bpy
 import sys
 import subprocess
+import site
+from pathlib import Path
+from datetime import datetime
 
 app_path = site.getusersitepackages()
-print("Blender PIP user site:", app_path)
 if app_path not in sys.path:
-    print("Adding site to path")
     sys.path.append(app_path)
 
-import bpy
-import numpy as np
-import mathutils as mu
-from pathlib import Path
-
 MODULES_FOLDER = Path(bpy.utils.user_resource("SCRIPTS")) / "modules"
-
-if bpy.app.version < (2, 91, 0):
-    python_bin = bpy.app.binary_path_python
-else:
-    python_bin = sys.executable
+python_bin = sys.executable if bpy.app.version >= (2, 91, 0) else bpy.app.binary_path_python
 
 TEXT_OUTPUT = []
 ERROR_OUTPUT = []
 
-
 def run_pip_command(self, *cmds, cols=False, run_module="pip"):
-    """Run PIP process with user spec commands"""
-    global ERROR_OUTPUT
-    global TEXT_OUTPUT
+    global TEXT_OUTPUT, ERROR_OUTPUT
 
-    cmds = [c for c in cmds if c is not None]
-
-    # TODO: make this function only run pip commands, make separate function to run other modules
-    # Choose where to save Python modules
-    # if bpy.context.scene.pip_modules_home and MODULES_FOLDER.exists() and run_module == "pip":
-    #     cmds = ["--root", MODULES_FOLDER] + cmds
-    #     command = [python_bin, "-m", run_module, *cmds]
-    # else:
-    #     command = [python_bin, "-m", run_module, *cmds]
+    cmds = [c for c in cmds if c]
     command = [python_bin, "-m", run_module, *cmds]
 
-    print(command)
-    output = subprocess.run(
-        command, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
+    output = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 
-    if output.stderr:
-        if "WARNING" not in output.stderr[:20]:
-            # Don't display error popup when PIP complains it's not the latest and greatest
-            self.report({"ERROR"}, "Error happened. Check console")
-        print(">>> ERROR")
-        print(output.returncode)
-        print(output.stderr)
+    if output.stderr and "WARNING" not in output.stderr[:20]:
+        self.report({"ERROR"}, "Error occurred. See console.")
         ERROR_OUTPUT = save_text(output.stderr)
     else:
         ERROR_OUTPUT = []
 
-    if output.stdout:
-        TEXT_OUTPUT = save_text(output.stdout, cols=cols)
-    else:
-        TEXT_OUTPUT = []
-
+    TEXT_OUTPUT = save_text(output.stdout, cols=cols) if output.stdout else []
 
 def save_text(text, cols=False):
-    """Parse input text string into a 2D list"""
-    out = []
-    for i in text.split("\n"):
-        if len(i) <= 1:
+    lines = []
+    for line in text.strip().splitlines():
+        if not line.strip():
             continue
-        subs = i.split()
-        parts = []
-        if cols:
-            for s in subs:
-                parts.append(s)
-        else:
-            parts.append(" ".join(subs))
-        out.append(parts)
-    return out
+        parts = line.split() if cols else [" ".join(line.split())]
+        lines.append(parts)
+    return lines
 
+# ---------------- OPERATORS ----------------
 
 class PMM_OT_PIPInstall(bpy.types.Operator):
     bl_idname = "pmm.pip_install"
     bl_label = "Install packages"
-    bl_description = "Install PIP packages"
-
     def execute(self, context):
-        chosen_path = "--user" if bpy.context.scene._flag else None
-        run_pip_command(
-            self,
-            "install",
-            *bpy.context.scene.pip_module_name.split(" "),
-            chosen_path,
-        )
+        user_flag = "--user" if context.scene.pip_user_flag else None
+        run_pip_command(self, "install", *context.scene.pip_module_name.split(), user_flag)
         return {"FINISHED"}
-
 
 class PMM_OT_PIPRemove(bpy.types.Operator):
     bl_idname = "pmm.pip_remove"
     bl_label = "Remove packages"
-    bl_description = "Remove PIP packages"
-
     def execute(self, context):
-        run_pip_command(self, "uninstall", *bpy.context.scene.pip_module_name.split(" "), "-y")
+        run_pip_command(self, "uninstall", *context.scene.pip_module_name.split(), "-y")
         return {"FINISHED"}
-
 
 class PMM_OT_ClearText(bpy.types.Operator):
-    bl_idname = "pmm.pip_cleartext"
-    bl_label = "Clear text"
-    bl_description = "Clear text output"
-
+    bl_idname = "pmm.clear_output"
+    bl_label = "Clear Output"
     def execute(self, context):
-        global TEXT_OUTPUT
-        TEXT_OUTPUT = []
-        global ERROR_OUTPUT
-        ERROR_OUTPUT = []
+        global TEXT_OUTPUT, ERROR_OUTPUT
+        TEXT_OUTPUT, ERROR_OUTPUT = [], []
         return {"FINISHED"}
-
 
 class PMM_OT_PIPList(bpy.types.Operator):
     bl_idname = "pmm.pip_list"
-    bl_label = "List packages"
-    bl_description = "List installed PIP packages"
-
+    bl_label = "List Installed Packages"
     def execute(self, context):
         run_pip_command(self, "list", cols=True)
         return {"FINISHED"}
 
-
 class PMM_OT_EnsurePIP(bpy.types.Operator):
     bl_idname = "pmm.ensure_pip"
-    bl_label = "Ensure PIP"
-    bl_description = "Try to ensure PIP exists"
-
+    bl_label = "Ensure pip is available"
     def execute(self, context):
         run_pip_command(self, "--default-pip", run_module="ensurepip")
         return {"FINISHED"}
 
-
 class PMM_OT_UpgradePIP(bpy.types.Operator):
     bl_idname = "pmm.upgrade_pip"
-    bl_label = "Upgrade PIP"
-    bl_description = "Upgrade PIP"
-
+    bl_label = "Upgrade pip"
     def execute(self, context):
         run_pip_command(self, "install", "--upgrade", "pip")
         return {"FINISHED"}
 
+class PMM_OT_CheckCompatibility(bpy.types.Operator):
+    bl_idname = "pmm.check_compatibility"
+    bl_label = "Check Package Dependencies"
+    def execute(self, context):
+        run_pip_command(self, "check")
+        if TEXT_OUTPUT:
+            self.report({"WARNING"}, "Some dependency issues found. Check console or output.")
+        else:
+            self.report({"INFO"}, "All packages compatible.")
+        return {"FINISHED"}
+
+class PMM_OT_ExportList(bpy.types.Operator):
+    bl_idname = "pmm.export_list"
+    bl_label = "Export Packages List"
+    def execute(self, context):
+        run_pip_command(self, "list", cols=True)
+        export_dir = Path(bpy.utils.user_resource("SCRIPTS"))
+        txt_path = export_dir / "installed_packages.txt"
+        csv_path = export_dir / "installed_packages.csv"
+        filter_str = context.scene.pip_filter_string.strip().lower()
+
+        try:
+            with open(txt_path, "w", encoding="utf-8") as txtfile, \
+                 open(csv_path, "w", encoding="utf-8") as csvfile:
+
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                txtfile.write(f"Installed Python Packages - {timestamp}\n" + "-"*50 + "\n")
+                csvfile.write("Package,Version\n")
+
+                for line in TEXT_OUTPUT:
+                    if line[0].lower() == "package":
+                        continue
+                    name, version = line[0], line[1]
+                    if filter_str and filter_str not in name.lower():
+                        continue
+                    txtfile.write(f"{name} {version}\n")
+                    csvfile.write(f"{name},{version}\n")
+
+            self.report({"INFO"}, f"Exported to TXT and CSV in {export_dir}")
+        except Exception as e:
+            self.report({"ERROR"}, f"Export failed: {e}")
+        return {"FINISHED"}
+
+class PMM_OT_ExportDependencies(bpy.types.Operator):
+    bl_idname = "pmm.export_dependencies"
+    bl_label = "Export Dependencies (pip show)"
+    def execute(self, context):
+        run_pip_command(self, "list", cols=True)
+        export_path = Path(bpy.utils.user_resource("SCRIPTS")) / "package_dependencies.txt"
+        try:
+            with open(export_path, "w", encoding="utf-8") as f:
+                f.write("Dependencies by package\n")
+                f.write("="*40 + "\n")
+                for line in TEXT_OUTPUT:
+                    if line[0].lower() == "package":
+                        continue
+                    module_name = line[0]
+                    result = subprocess.run(
+                        [python_bin, "-m", "pip", "show", module_name],
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
+                    )
+                    f.write(f"\n{module_name}\n" + "-"*len(module_name) + "\n")
+                    f.write(result.stdout or "[No info]\n")
+            self.report({"INFO"}, f"Exported dependencies to {export_path.name}")
+        except Exception as e:
+            self.report({"ERROR"}, f"Failed: {e}")
+        return {"FINISHED"}
+
+class PMM_OT_ExportDependencyTree(bpy.types.Operator):
+    bl_idname = "pmm.export_dependency_tree"
+    bl_label = "Export Dependency Tree (pipdeptree)"
+    def execute(self, context):
+        export_path = Path(bpy.utils.user_resource("SCRIPTS")) / "dependency_tree.txt"
+        try:
+            result = subprocess.run(
+                [python_bin, "-m", "pipdeptree"],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
+            )
+            with open(export_path, "w", encoding="utf-8") as f:
+                f.write(result.stdout or "[No output]\n")
+            self.report({"INFO"}, f"Exported dependency tree to {export_path.name}")
+        except Exception as e:
+            self.report({"ERROR"}, f"pipdeptree not available or error occurred: {e}")
+        return {"FINISHED"}
+
+# ------------- PREFERENCES UI ----------------
 
 class PMM_AddonPreferences(bpy.types.AddonPreferences):
     bl_idname = __name__
 
     def draw(self, context):
         layout = self.layout
+        layout.prop(context.scene, "pip_user_flag", text="Install as --user")
+        layout.prop(context.scene, "pip_module_name", text="Module name(s)")
+        layout.prop(context.scene, "pip_filter_string", text="Filter (for export)")
+
+        layout.separator()
+        layout.label(text="Basic operations:")
         row = layout.row()
-        row.prop(bpy.context.scene, "pip_user_flag", text="As local user")
-        # TODO: implement storing Python modules into Blender module home
-        # row.prop(bpy.context.scene, "pip_modules_home", text="Use Blender modules location")
+        row.operator("pmm.pip_install", text="Install")
+        row.operator("pmm.pip_remove", text="Remove")
 
         row = layout.row()
-        row.operator(PMM_OT_EnsurePIP.bl_idname, text="Ensure PIP")
-        row.operator(PMM_OT_UpgradePIP.bl_idname, text="Upgrade PIP")
-        row.operator(PMM_OT_PIPList.bl_idname, text="List")
+        row.operator("pmm.pip_list", text="List")
+        row.operator("pmm.clear_output", text="Clear Output")
+
+        layout.separator()
+        layout.label(text="Export tools:")
+        row = layout.row()
+        row.operator("pmm.export_list", text="Export List")
+        row.operator("pmm.export_dependencies", text="Export Dependencies")
 
         row = layout.row()
-        row.prop(bpy.context.scene, "pip_module_name", text="Module name(s)")
-        row.operator(PMM_OT_PIPInstall.bl_idname, text="Install")
-        row.operator(PMM_OT_PIPRemove.bl_idname, text="Remove")
+        row.operator("pmm.export_dependency_tree", text="Export Tree")
+        row.operator("pmm.check_compatibility", text="Check Compatibility")
 
-        if TEXT_OUTPUT != []:
-            row = layout.row(align=True)
-            box = row.box()
-            box = box.column(align=True)
-            for i in TEXT_OUTPUT:
-                row = box.row()
-                for s in i:
-                    col = row.column()
-                    col.label(text=s)
-            row = layout.row()
+        layout.separator()
+        layout.label(text="Maintenance:")
+        row = layout.row()
+        row.operator("pmm.upgrade_pip", text="Upgrade pip")
+        row.operator("pmm.ensure_pip", text="Ensure pip")
 
-        if ERROR_OUTPUT != []:
-            # row = layout.row(align=True)
-            # row.label(text="Error messages:")
-            row = layout.row(align=True)
-            box = row.box()
-            box = box.column(align=True)
-            for i in ERROR_OUTPUT:
-                row = box.row()
-                for s in i:
-                    col = row.column()
-                    col.label(text=s)
-            row = layout.row()
+        if TEXT_OUTPUT:
+            layout.label(text="Output:")
+            box = layout.box()
+            for line in TEXT_OUTPUT:
+                box.label(text=" | ".join(line))
 
-        if TEXT_OUTPUT != [] or ERROR_OUTPUT != []:
-            row.operator(PMM_OT_ClearText.bl_idname, text="Clear output text")
+        if ERROR_OUTPUT:
+            layout.label(text="Errors:")
+            box = layout.box()
+            for line in ERROR_OUTPUT:
+                box.label(text=" ".join(line))
 
+# -------------- REGISTER ----------------
 
 classes = (
     PMM_AddonPreferences,
-    PMM_OT_EnsurePIP,
-    PMM_OT_UpgradePIP,
-    PMM_OT_PIPList,
     PMM_OT_PIPInstall,
     PMM_OT_PIPRemove,
     PMM_OT_ClearText,
+    PMM_OT_PIPList,
+    PMM_OT_EnsurePIP,
+    PMM_OT_UpgradePIP,
+    PMM_OT_ExportList,
+    PMM_OT_ExportDependencies,
+    PMM_OT_ExportDependencyTree,
+    PMM_OT_CheckCompatibility,
 )
 
-
 def register():
-    for c in classes:
-        bpy.utils.register_class(c)
-
-    bpy.types.Scene.pip_modules_home = bpy.props.BoolProperty(default=False)
-    bpy.types.Scene.pip_user_flag = bpy.props.BoolProperty(default=False)
-    bpy.types.Scene.pip_advanced_toggle = bpy.props.BoolProperty(default=False)
-    bpy.types.Scene.pip_module_name = bpy.props.StringProperty()
-
+    for cls in classes:
+        bpy.utils.register_class(cls)
+    bpy.types.Scene.pip_user_flag = bpy.props.BoolProperty(default=True)
+    bpy.types.Scene.pip_module_name = bpy.props.StringProperty(default="")
+    bpy.types.Scene.pip_filter_string = bpy.props.StringProperty(default="")
 
 def unregister():
-    for c in reversed(classes):
-        bpy.utils.unregister_class(c)
-
-    del bpy.types.Scene.pip_modules_home
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
     del bpy.types.Scene.pip_user_flag
-    del bpy.types.Scene.pip_advanced_toggle
     del bpy.types.Scene.pip_module_name
+    del bpy.types.Scene.pip_filter_string
+
+if __name__ == "__main__":
+    register()

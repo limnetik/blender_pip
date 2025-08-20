@@ -4,7 +4,7 @@ schema_version = "1.0.0"
 # Change the values according to your extension
 id = "python_module_manager"
 version = "1.0.6"
-name = "Python Module Manager"
+name = "Python Module Manager plus"
 tagline = "Manage Python modules inside Blender with PIP"
 maintainer = "ambi"
 # Supported types: "add-on", "theme"
