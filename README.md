@@ -1,7 +1,7 @@
 # 🐍 Python Module Manager Plus
 
 **Blender Add-on for Python Package Management**  
-Manage, install, remove, and export Python packages directly inside Blender. (Chat GPT was used for making all of this)
+Manage, install, remove, and export Python packages directly inside Blender. (Chat GPT was used for making the modded add-on)
 
 ---
 
